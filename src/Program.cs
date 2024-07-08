@@ -1,6 +1,7 @@
 ﻿using System;
 using Arcane.Framework.Contracts;
 using Arcane.Framework.Providers.Hosting;
+using Arcane.Stream.BlobStorage.Exceptions;
 using Arcane.Stream.BlobStorage.GraphBuilder;
 using Arcane.Stream.BlobStorage.Models;
 using Microsoft.Extensions.Hosting;
@@ -22,12 +23,16 @@ try
             => services.AddStreamGraphBuilder<BlobStorageGraphBuilder, BlobStorageStreamContext>())
         .ConfigureAdditionalServices((services, context) =>
         {
-            services.AddAzureBlob(AzureStorageConfiguration.CreateDefault());
             services.AddDatadogMetrics(configuration: DatadogConfiguration.UnixDomainSocket(context.ApplicationName));
             services.AddAwsS3Writer(AmazonStorageConfiguration.CreateFromEnv());
         })
         .Build()
         .RunStream(Log.Logger);
+}
+catch (ConfigurationException ex)
+{
+    Log.Fatal(ex, "Invalid configuration provided, exiting");
+    return StreamExitCodes.NO_RETRY;
 }
 catch (Exception ex)
 {

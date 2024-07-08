@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using Akka.Actor;
@@ -25,14 +24,19 @@ public class BlobStorageStreamTests
     private readonly CancellationTokenSource cts = new();
 
     [Fact]
-    public async Task BlobStorageGraphTest()
+    public async Task TestCanStreamBlobs()
     {
         var builder = this.CreateServiceProvider().GetRequiredService<BlobStorageGraphBuilder>();
         var context = new BlobStorageStreamContext
         {
             ReadParallelism = 1,
-            Prefix = "prefix",
-            ChangeCaptureInterval = TimeSpan.FromSeconds(1)
+            WriteParallelism = 1,
+            DeleteParallelism = 1,
+            SourcePath = "s3a://source-bucket/prefix/to/blobs",
+            TargetPath = "s3a://target-bucket/target/",
+            ChangeCaptureInterval = TimeSpan.FromSeconds(1),
+            ElementsPerSecond = 1000,
+            RequestThrottleBurst = 100
         };
 
         this.blobStorageServiceMock.Setup(s 
@@ -57,8 +61,47 @@ public class BlobStorageStreamTests
 
         await task;
 
+        this.blobStorageServiceMock.Verify(s =>
+            s.SaveBytesAsBlob(It.IsAny<BinaryData>(),"target/prefix/to/blobs", "name", true));
+        this.blobStorageServiceMock.Verify(s => s.ListBlobsAsEnumerable("prefix/to/blobs"));
         this.blobStorageServiceMock.Verify(s
-            => s.RemoveBlob(It.IsAny<string>(), It.IsAny<string>()));
+            => s.RemoveBlob("prefix/to/blobs", "name"));
+    }
+    
+    [Fact]
+    public async Task TestFailsIfCannotDeleteBlob()
+    {
+        var builder = this.CreateServiceProvider().GetRequiredService<BlobStorageGraphBuilder>();
+        var context = new BlobStorageStreamContext
+        {
+            ReadParallelism = 1,
+            WriteParallelism = 1,
+            DeleteParallelism = 1,
+            SourcePath = "s3a://prefix/to/blobs",
+            TargetPath = "s3a://target/",
+            ChangeCaptureInterval = TimeSpan.FromSeconds(1),
+            ElementsPerSecond = 1000,
+            RequestThrottleBurst = 100
+        };
+
+        var graph = builder.BuildGraph(context);
+        var callCount = 0;
+
+        var (killSwitch, task) = graph.Run(this.actorSystem.Materializer());
+        this.blobStorageServiceMock
+            .Setup(s => s.ListBlobsAsEnumerable(It.IsAny<string>()))
+            .Callback(() =>
+            {
+                if (callCount > 3)
+                {
+                    killSwitch.Shutdown();
+                }
+
+                callCount++;
+            })
+            .Returns(new StoredBlob[] { new StoredBlob { Name = "name" } });
+        
+        await Assert.ThrowsAnyAsync<AggregateException>( async () => await task);
     }
 
 

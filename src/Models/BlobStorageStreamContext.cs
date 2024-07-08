@@ -1,8 +1,10 @@
 ﻿using System;
+using System.Diagnostics.CodeAnalysis;
 using Arcane.Framework.Services.Base;
 
 namespace Arcane.Stream.BlobStorage.Models;
 
+[ExcludeFromCodeCoverage(Justification = "Model")]
 public class BlobStorageStreamContext : IStreamContext, IStreamContextWriter
 {
     /// <summary>

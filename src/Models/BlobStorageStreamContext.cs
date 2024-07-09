@@ -1,5 +1,7 @@
 ﻿using System;
 using System.Diagnostics.CodeAnalysis;
+using System.Text.Json.Serialization;
+using Arcane.Framework.Configuration;
 using Arcane.Framework.Services.Base;
 
 namespace Arcane.Stream.BlobStorage.Models;
@@ -35,6 +37,8 @@ public class BlobStorageStreamContext : IStreamContext, IStreamContextWriter
     /// <summary>
     /// How often to check for changes in the source blob storage.
     /// </summary>
+    [JsonConverter(typeof(SecondsToTimeSpanConverter))]
+    [JsonPropertyName("changeCaptureIntervalSeconds")]
     public TimeSpan ChangeCaptureInterval { get; init; }
     
     /// <summary>

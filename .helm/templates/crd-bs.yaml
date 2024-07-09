@@ -1,0 +1,168 @@
+{{- if .Values.customResourceDefinitions.create }}
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: blob-storage.streaming.sneaksanddata.com
+spec:
+  group: streaming.sneaksanddata.com
+  scope: Namespaced
+  names:
+    plural: blob-storages
+    singular: blob-storage
+    kind: BlobStorageStream
+    shortNames:
+      - blob-storage
+  versions:
+    - name: v1beta1
+      served: true
+      storage: true
+      additionalPrinterColumns:
+        - name: Source
+          type: string
+          jsonPath: .spec.sourcePath
+        - name: Refresh Interval
+          type: string
+          jsonPath: .spec.changeCaptureIntervalSeconds
+        - name: Sink location
+          type: string
+          jsonPath: .spec.targetPath
+        - name: Phase
+          type: string
+          jsonPath: .status.phase
+      subresources:
+        status: {}
+      schema:
+        openAPIV3Schema:
+          type: object
+          properties:
+            spec:
+              type: object
+              properties:
+                jobTemplateRef:
+                  description: |
+                    Name of the job template to be used for the streaming job if stream is running in normal mode.
+                  type: object
+                  properties:
+                    name:
+                      type: string
+                    kind:
+                      type: string
+                    apiGroup:
+                      type: string
+                  default:
+                    apiGroup: streaming.sneaksanddata.com
+                    kind: StreamingJobTemplate
+                    name: standard-job
+                backfillJobTemplateRef:
+                  description: |
+                    Name of the job template to be used for the streaming job if stream is running in backfill mode.
+                  type: object
+                  properties:
+                    name:
+                      type: string
+                    kind:
+                      type: string
+                    apiGroup:
+                      type: string
+                  default:
+                    apiGroup: streaming.sneaksanddata.com
+                    kind: StreamingJobTemplate
+                    name: large-job
+                sourcePath:
+                  type: string
+                  description: |
+                    Blob storage path of the source data (in snd-sdk format).
+                    Depending on the path schema, the the different secret keys are used.
+                    For now only `s3a://` is supported.
+                sourceCredentialsRef:
+                  description: |
+                    Name of the secret containing the connection string.
+                    The secret structure is dependent on the source path schema.
+                    The following are the supported schemas:
+                    - The `s3a://` path requires the following keys:
+                      - `ARCANE.STREAM.BLOBSTORAGE__SOURCE.AWS_ACCESS_KEY_ID`
+                      - `ARCANE.STREAM.BLOBSTORAGE__SOURCE.AWS_SECRET_ACCESS_KEY`
+                      - `ARCANE.STREAM.BLOBSTORAGE__SOURCE.AWS_ENDPOINT_URL`
+                  type: object
+                  properties:
+                    name:
+                      type: string
+                targetPath:
+                  type: string
+                  description: |
+                    Blob storage path of the target data (in snd-sdk format).
+                    Depending on the path schema, the the different secret keys are used.
+                    For now only `s3a://` is supported.
+                targetCredentialsRef:
+                  description: |
+                    Name of the secret containing the connection string.
+                    The secret structure is dependent on the source path schema.
+                    The following are the supported schemas:
+                    - The `s3a://` path requires the following keys:
+                      - `ARCANE.STREAM.BLOBSTORAGE__TARGET.AWS_ACCESS_KEY_ID`
+                      - `ARCANE.STREAM.BLOBSTORAGE__TARGET.AWS_SECRET_ACCESS_KEY`
+                      - `ARCANE.STREAM.BLOBSTORAGE__TARGET.AWS_ENDPOINT_URL`
+                  type: object
+                  properties:
+                    name:
+                      type: string
+                readParallelism:
+                  type: number
+                  default: 1
+                  description: Parallelism for read operations (include listing blobs).
+                writeParallelism:
+                  type: number
+                  default: 1
+                  description: Parallelism for read operations (include listing blobs).
+                deleteParallelism:
+                  type: number
+                  default: 1
+                  description: Parallelism for read operations (include listing blobs).
+                changeCaptureIntervalSeconds:
+                  type: number
+                  default: 30
+                  description: How often to check for changes in the source blob storage.
+                requestThrottleBurst:
+                  type: number
+                  default: 3000
+                  description: How often to check for changes in the source blob storage.
+                elementsPerSecond:
+                  type: number
+                  default: 100
+                  description: How often to check for changes in the source blob storage.
+            status:
+              type: object
+              properties:
+                phase:
+                  type: string
+                  enum:
+                    - RESTARTING
+                    - RUNNING
+                    - RELOADING
+                    - TERMINATING
+                    - STOPPED
+                    - SUSPENDED
+                    - FAILED
+                conditions:
+                  type: array
+                  items:
+                    type: object
+                    required:
+                      - status
+                      - type
+                    properties:
+                      message:
+                        type: string
+                      type:
+                        type: string
+                        enum:
+                          - WARNING
+                          - ERROR
+                          - INFO
+                          - READY
+                      status:
+                        type: string
+                        enum:
+                          - "True"
+                          - "False"
+{{- end }}

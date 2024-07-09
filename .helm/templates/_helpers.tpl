@@ -65,7 +65,7 @@ Create the name of the service account to use
 {{- end }}
 
 {{/*
-Generate the CR editor cluster role name
+Generate the CR viewer cluster role name
 */}}
 {{- define "app.clusteRole.blobStorageStreamViewer" -}}
 {{- if .Values.rbac.clusterRole.blobStorageStreamViewer.nameOverride }}
@@ -76,7 +76,7 @@ Generate the CR editor cluster role name
 {{- end }}
 
 {{/*
-Generate the CR viewer cluster role name
+Generate the CR editor cluster role name
 */}}
 {{- define "app.clusteRole.blobStorageStreamEditor" -}}
 {{- if .Values.rbac.clusterRole.blobStorageStreamEditor.nameOverride }}

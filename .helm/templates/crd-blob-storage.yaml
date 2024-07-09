@@ -20,12 +20,12 @@ spec:
         - name: Source
           type: string
           jsonPath: .spec.sourcePath
+        - name: Target
+          type: string
+          jsonPath: .spec.targetPath
         - name: Refresh Interval
           type: string
           jsonPath: .spec.changeCaptureIntervalSeconds
-        - name: Sink location
-          type: string
-          jsonPath: .spec.targetPath
         - name: Phase
           type: string
           jsonPath: .status.phase
@@ -113,11 +113,11 @@ spec:
                 writeParallelism:
                   type: number
                   default: 1
-                  description: Parallelism for read operations (include listing blobs).
+                  description: Parallelism for write operations.
                 deleteParallelism:
                   type: number
                   default: 1
-                  description: Parallelism for read operations (include listing blobs).
+                  description: Parallelism for delete operations.
                 changeCaptureIntervalSeconds:
                   type: number
                   default: 30
@@ -125,11 +125,11 @@ spec:
                 requestThrottleBurst:
                   type: number
                   default: 3000
-                  description: How often to check for changes in the source blob storage.
+                  description: Request rate that triggers throttling.
                 elementsPerSecond:
                   type: number
                   default: 100
-                  description: How often to check for changes in the source blob storage.
+                  description: Maximum number of processed objects per second.
             status:
               type: object
               properties:

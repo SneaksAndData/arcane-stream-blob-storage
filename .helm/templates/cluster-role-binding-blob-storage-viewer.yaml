@@ -3,7 +3,7 @@
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
-  name: {{ template "app.serviceAccountName" . }}-blob-storage-stream-viewer
+  name: {{ template "app.serviceAccountName" . }}-{{ template "app.clusteRole.blobStorageStreamViewer" . }}
   labels:
     {{- include "app.labels" $ | nindent 4 }}
     {{- with .Values.rbac.clusterRoleBindings.additionalLabels }}

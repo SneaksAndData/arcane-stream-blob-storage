@@ -9,7 +9,7 @@ namespace Arcane.Stream.BlobStorage.Extensions;
 
 public static class StreamContextExtensions
 {
-    public static Sink<(IStoragePath, string), Task> GetSink(this BlobStorageStreamContext context, IBlobStorageService blobStorageService)
+    public static Sink<(IStoragePath, string), Task> GetSink(this BlobStorageStreamContext context, IBlobStorageWriter blobStorageService)
     {
         return Sink.ForEachAsync<(IStoragePath, string)>(context.DeleteParallelism, async deleteRequest =>
         {

@@ -7,6 +7,7 @@ using Arcane.Framework.Sources.BlobStorage;
 using Arcane.Stream.BlobStorage.Exceptions;
 using Arcane.Stream.BlobStorage.Extensions;
 using Arcane.Stream.BlobStorage.Models;
+using Microsoft.Extensions.DependencyInjection;
 using Snd.Sdk.Storage.Base;
 using Snd.Sdk.Storage.Models.Base;
 using Snd.Sdk.Storage.Models.BlobPath;
@@ -16,14 +17,20 @@ namespace Arcane.Stream.BlobStorage.GraphBuilder;
 
 public class BlobStorageGraphBuilder : IStreamGraphBuilder<BlobStorageStreamContext>
 {
-    private readonly IBlobStorageService sourceBlobStorageService;
+    private readonly IBlobStorageListService sourceBlobStorageService;
     private readonly IBlobStorageWriter targetBlobStorageService;
+    private readonly IBlobStorageWriter sourceBlobStorageWriter;
+    private readonly IBlobStorageReader sourceBlobStorageReader;
 
     public BlobStorageGraphBuilder(
-        IBlobStorageService sourceBlobStorageService,
-        IBlobStorageWriter targetBlobStorageService)
+        IBlobStorageListService sourceBlobStorageService,
+        IBlobStorageReader sourceBlobStorageReader,
+        [FromKeyedServices(StorageType.SOURCE)] IBlobStorageWriter sourceBlobStorageWriter,
+        [FromKeyedServices(StorageType.TARGET)] IBlobStorageWriter targetBlobStorageService)
     {
         this.sourceBlobStorageService = sourceBlobStorageService;
+        this.sourceBlobStorageReader = sourceBlobStorageReader;
+        this.sourceBlobStorageWriter = sourceBlobStorageWriter;
         this.targetBlobStorageService = targetBlobStorageService;
     }
 
@@ -50,13 +57,13 @@ public class BlobStorageGraphBuilder : IStreamGraphBuilder<BlobStorageStreamCont
             .SelectAsync(context.ReadParallelism, b => this.GetBlobContentAsync(parsedSourcePath, b))
             .SelectAsync(context.WriteParallelism, b => this.SaveBlobContentAsync(parsedTargetPath, b))
             .ViaMaterialized(KillSwitches.Single<(IStoragePath, string)>(), Keep.Right)
-            .ToMaterialized(context.GetSink(this.sourceBlobStorageService), Keep.Both);
+            .ToMaterialized(context.GetSink(this.sourceBlobStorageWriter), Keep.Both);
     }
 
 
     private Task<(IStoragePath, string, BinaryData)> GetBlobContentAsync(IStoragePath rootPath, string blobPath)
     {
-        return this.sourceBlobStorageService
+        return this.sourceBlobStorageReader
             .GetBlobContentAsync(rootPath.ObjectKey, blobPath, data => data)
             .Map(d => (rootPath, blobPath, d));
     }

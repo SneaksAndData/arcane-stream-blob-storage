@@ -2,6 +2,7 @@
 using Arcane.Framework.Contracts;
 using Arcane.Framework.Providers.Hosting;
 using Arcane.Stream.BlobStorage.Exceptions;
+using Arcane.Stream.BlobStorage.Extensions;
 using Arcane.Stream.BlobStorage.GraphBuilder;
 using Arcane.Stream.BlobStorage.Models;
 using Microsoft.Extensions.Hosting;
@@ -9,8 +10,6 @@ using Serilog;
 using Snd.Sdk.Logs.Providers;
 using Snd.Sdk.Metrics.Configurations;
 using Snd.Sdk.Metrics.Providers;
-using Snd.Sdk.Storage.Providers;
-using Snd.Sdk.Storage.Providers.Configurations;
 
 Log.Logger = DefaultLoggingProvider.CreateBootstrapLogger(nameof(Arcane));
 
@@ -24,7 +23,10 @@ try
         .ConfigureAdditionalServices((services, context) =>
         {
             services.AddDatadogMetrics(configuration: DatadogConfiguration.UnixDomainSocket(context.ApplicationName));
-            services.AddAwsS3Writer(AmazonStorageConfiguration.CreateFromEnv());
+            services.AddSourceListService();
+            services.AddSourceReader();
+            services.AddTargetWriter();
+            services.AddSourceWriter();
         })
         .Build()
         .RunStream(Log.Logger);

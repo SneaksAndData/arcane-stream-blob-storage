@@ -59,7 +59,7 @@ public static class ServiceCollectionExtensions
                 services.TryAddAmazonS3Client(GetScopedCredentials(StorageType.SOURCE));
                 var client = sp.GetRequiredService<IAmazonS3>();
                 var logger = sp.GetRequiredService<ILogger<AmazonBlobStorageService>>();
-                return null; //new AmazonBlobStorageService(client, logger);
+                return new AmazonBlobStorageService(client, logger);
             }
 
             throw new ConfigurationException("Source path is invalid, only Amazon S3 paths are supported");

@@ -3,6 +3,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Akka.Actor;
 using Akka.Streams;
+using Arcane.Stream.BlobStorage.Extensions;
 using Arcane.Stream.BlobStorage.GraphBuilder;
 using Arcane.Stream.BlobStorage.Models;
 using Microsoft.Extensions.DependencyInjection;
@@ -20,8 +21,6 @@ public class BlobStorageStreamTests
 
     // Mocks
     private readonly Mock<IBlobStorageService> blobStorageServiceMock = new();
-    private readonly TaskCompletionSource tcs = new();
-    private readonly CancellationTokenSource cts = new();
 
     [Fact]
     public async Task TestCanStreamBlobs()
@@ -110,9 +109,10 @@ public class BlobStorageStreamTests
         return new ServiceCollection()
             .AddSingleton<IMaterializer>(this.actorSystem.Materializer())
             .AddSingleton(this.actorSystem)
-            .AddSingleton(this.blobStorageServiceMock.Object)
+            .AddSingleton<IBlobStorageListService>(this.blobStorageServiceMock.Object)
             .AddSingleton<IBlobStorageReader>(this.blobStorageServiceMock.Object)
-            .AddSingleton<IBlobStorageWriter>(this.blobStorageServiceMock.Object)
+            .AddKeyedSingleton<IBlobStorageWriter>(StorageType.SOURCE, this.blobStorageServiceMock.Object)
+            .AddKeyedSingleton<IBlobStorageWriter>(StorageType.TARGET, this.blobStorageServiceMock.Object)
             .AddSingleton<BlobStorageGraphBuilder>()
             .BuildServiceProvider();
     }

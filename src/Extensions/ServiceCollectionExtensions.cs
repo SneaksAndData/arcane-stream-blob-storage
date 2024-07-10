@@ -16,7 +16,7 @@ namespace Arcane.Stream.BlobStorage.Extensions;
 /// <summary>
 /// Used to identify the storage type in the configuration and DI container
 /// </summary>
-enum StorageType
+public enum StorageType
 {
     /// <summary>
     /// The source service type

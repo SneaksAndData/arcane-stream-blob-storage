@@ -7,11 +7,11 @@ spec:
   group: streaming.sneaksanddata.com
   scope: Namespaced
   names:
-    plural: blob-storage-stream
-    singular: blob-storage-streams
+    plural: blob-storage-streams
+    singular: blob-storage-stream
     kind: BlobStorageStream
     shortNames:
-      - blob-storage
+      - bs-streams
   versions:
     - name: v1beta1
       served: true

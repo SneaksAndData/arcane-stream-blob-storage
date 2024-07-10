@@ -27,6 +27,13 @@ Create chart name and version as used by the chart label.
 {{- end }}
 
 {{/*
+Generage image reference based on image repository and tag
+*/}}
+{{- define "app.image" -}}
+{{- printf "%s:%s" .Values.image.repository  (default (printf "%s" .Chart.AppVersion) .Values.image.tag) }}
+{{- end }}
+
+{{/*
 Common labels
 */}}
 {{- define "app.labels" -}}
@@ -54,5 +61,56 @@ Create the name of the service account to use
 {{- default (include "app.fullname" .) .Values.serviceAccount.name }}
 {{- else }}
 {{- default "default" .Values.serviceAccount.name }}
+{{- end }}
+{{- end }}
+
+{{/*
+Generate the CR viewer cluster role name
+*/}}
+{{- define "app.clusteRole.blobStorageStreamViewer" -}}
+{{- if .Values.rbac.clusterRole.blobStorageStreamViewer.nameOverride }}
+{{- .Values.rbac.clusterRole.blobStorageStreamViewer.nameOverride }}
+{{- else }}
+{{- printf "%s-blob-storage-viewer" (include "app.fullname" .) }}
+{{- end }}
+{{- end }}
+
+{{/*
+Generate the CR editor cluster role name
+*/}}
+{{- define "app.clusteRole.blobStorageStreamEditor" -}}
+{{- if .Values.rbac.clusterRole.blobStorageStreamEditor.nameOverride }}
+{{- .Values.rbac.clusterRole.blobStorageStreamEditor.nameOverride }}
+{{- else }}
+{{- printf "%s-blob-storage-editor" (include "app.fullname" .) }}
+{{- end }}
+{{- end }}
+
+{{/*
+Stream class labels
+*/}}
+{{- define "streamclass.labels" -}}
+helm.sh/chart: {{ include "app.chart" . }}
+{{ include "app.selectorLabels" . }}
+{{- if .Chart.AppVersion }}
+app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
+{{- end }}
+app.kubernetes.io/managed-by: {{ .Release.Service }}
+{{- with .Values.additionalLabels }}
+{{ toYaml . }}
+{{- end }}
+{{- end }}
+
+{{/*
+Job template standard labels
+*/}}
+{{- define "job.labels" -}}
+helm.sh/chart: {{ include "app.chart" . }}
+{{ include "app.selectorLabels" . }}
+{{- if .Chart.AppVersion }}
+app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
+{{- end }}
+{{- with .Values.jobTemplateSettings.additionalLabels }}
+{{ toYaml . }}
 {{- end }}
 {{- end }}

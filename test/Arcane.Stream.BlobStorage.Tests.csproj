@@ -5,7 +5,7 @@
 
         <IsPackable>false</IsPackable>
 
-        <RootNamespace>Arcane.Stream.RestApi.Tests</RootNamespace>
+        <RootNamespace>Arcane.Stream.BlobStorage.Tests</RootNamespace>
     </PropertyGroup>
 
     <ItemGroup>
@@ -30,7 +30,7 @@
     </ItemGroup>
 
     <ItemGroup>
-        <ProjectReference Include="..\src\Arcane.Stream.RestApi.csproj" />
+        <ProjectReference Include="..\src\Arcane.Stream.BlobStorage.csproj" />
     </ItemGroup>
 
 </Project>

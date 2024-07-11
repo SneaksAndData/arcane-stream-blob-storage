@@ -87,6 +87,7 @@ spec:
                   properties:
                     name:
                       type: string
+                  nullable: true
                 targetPath:
                   type: string
                   description: |
@@ -106,6 +107,7 @@ spec:
                   properties:
                     name:
                       type: string
+                  nullable: true
                 readParallelism:
                   type: number
                   default: 1

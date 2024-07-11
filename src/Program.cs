@@ -29,7 +29,7 @@ try
             services.AddSourceWriter();
         })
         .Build()
-        .RunStream(Log.Logger);
+        .RunStream<BlobStorageStreamContext>(Log.Logger);
 }
 catch (ConfigurationException ex)
 {

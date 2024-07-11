@@ -38,7 +38,6 @@ public static class ServiceCollectionExtensions
             var context = sp.GetRequiredService<BlobStorageStreamContext>();
             if (AmazonS3StoragePath.IsAmazonS3Path(context.SourcePath))
             {
-                services.TryAddAmazonS3Client(StorageType.SOURCE, GetScopedCredentials(StorageType.SOURCE));
                 var client = sp.GetRequiredKeyedService<IAmazonS3>(StorageType.SOURCE);
                 var logger = sp.GetRequiredService<ILogger<AmazonBlobStorageService>>();
                 return new AmazonBlobStorageService(client, logger);
@@ -56,7 +55,6 @@ public static class ServiceCollectionExtensions
             var context = sp.GetRequiredService<BlobStorageStreamContext>();
             if (AmazonS3StoragePath.IsAmazonS3Path(context.SourcePath))
             {
-                services.TryAddAmazonS3Client(StorageType.SOURCE, GetScopedCredentials(StorageType.SOURCE));
                 var client = sp.GetRequiredKeyedService<IAmazonS3>(StorageType.SOURCE);
                 var logger = sp.GetRequiredService<ILogger<AmazonBlobStorageService>>();
                 return new AmazonBlobStorageService(client, logger);
@@ -74,7 +72,6 @@ public static class ServiceCollectionExtensions
             var context = sp.GetRequiredService<BlobStorageStreamContext>();
             if (AmazonS3StoragePath.IsAmazonS3Path(context.SourcePath))
             {
-                services.TryAddAmazonS3Client(StorageType.TARGET, GetScopedCredentials(key));
                 var client = sp.GetRequiredKeyedService<IAmazonS3>(StorageType.TARGET);
                 var logger = sp.GetRequiredService<ILogger<AmazonBlobStorageService>>();
                 return new AmazonBlobStorageService(client, logger);
@@ -92,7 +89,6 @@ public static class ServiceCollectionExtensions
             var context = sp.GetRequiredService<BlobStorageStreamContext>();
             if (AmazonS3StoragePath.IsAmazonS3Path(context.SourcePath))
             {
-                services.TryAddAmazonS3Client(StorageType.SOURCE, GetScopedCredentials(key));
                 var client = sp.GetRequiredKeyedService<IAmazonS3>(StorageType.SOURCE);
                 var logger = sp.GetRequiredService<ILogger<AmazonBlobStorageService>>();
                 return new AmazonBlobStorageService(client, logger);
@@ -103,7 +99,7 @@ public static class ServiceCollectionExtensions
         return services;
     }
 
-    private static AmazonStorageConfiguration GetScopedCredentials(object scope) => new()
+    public static AmazonStorageConfiguration GetScopedCredentials(this object scope) => new()
     {
         AccessKey = EnvironmentExtensions.GetDomainEnvironmentVariable($"{scope}.AWS_ACCESS_KEY_ID"),
         SecretKey = EnvironmentExtensions.GetDomainEnvironmentVariable($"{scope}.AWS_SECRET_ACCESS_KEY"),
@@ -113,7 +109,7 @@ public static class ServiceCollectionExtensions
                 : new Uri(EnvironmentExtensions.GetDomainEnvironmentVariable($"{scope}.AWS_ENDPOINT_URL"))
     };
 
-    private static void TryAddAmazonS3Client(this IServiceCollection services, StorageType storageType,
+    public static void TryAddAmazonS3Client(this IServiceCollection services, StorageType storageType,
         AmazonStorageConfiguration config)
     {
         if (config == null || IsEmpty(config))

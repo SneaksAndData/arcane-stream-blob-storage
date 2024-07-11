@@ -22,6 +22,8 @@ try
             => services.AddStreamGraphBuilder<BlobStorageGraphBuilder, BlobStorageStreamContext>())
         .ConfigureAdditionalServices((services, context) =>
         {
+            services.TryAddAmazonS3Client(StorageType.SOURCE, StorageType.SOURCE.GetScopedCredentials());
+            services.TryAddAmazonS3Client(StorageType.TARGET, StorageType.TARGET.GetScopedCredentials());
             services.AddDatadogMetrics(configuration: DatadogConfiguration.UnixDomainSocket(context.ApplicationName));
             services.AddSourceListService();
             services.AddSourceReader();

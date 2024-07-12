@@ -109,7 +109,8 @@ public static class ServiceCollectionExtensions
         ServiceUrl =
             string.IsNullOrEmpty(EnvironmentExtensions.GetDomainEnvironmentVariable($"{scope}.AWS_ENDPOINT_URL"))
                 ? null
-                : new Uri(EnvironmentExtensions.GetDomainEnvironmentVariable($"{scope}.AWS_ENDPOINT_URL"))
+                : new Uri(EnvironmentExtensions.GetDomainEnvironmentVariable($"{scope}.AWS_ENDPOINT_URL")),
+        AuthenticationRegion = EnvironmentExtensions.GetDomainEnvironmentVariable($"{scope}.AWS_REGION")
     };
 
     public static void TryAddAmazonS3Client(this IServiceCollection services, StorageType storageType,
@@ -127,6 +128,7 @@ public static class ServiceCollectionExtensions
             ForcePathStyle = true,
             ServiceURL = config.ServiceUrl.ToString(),
             UseAccelerateEndpoint = false,
+            AuthenticationRegion = config.AuthenticationRegion
         };
         var client = new AmazonS3Client(config.AccessKey, config.SecretKey, clientConfig);
         services.TryAddKeyedSingleton<IAmazonS3>(storageType, client);

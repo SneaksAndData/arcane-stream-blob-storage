@@ -22,7 +22,7 @@ public class BlobStorageStreamTests
     // Mocks
     private readonly Mock<IBlobStorageService> blobStorageServiceMock = new();
 
-    // [Fact]
+    [Fact]
     public async Task TestCanStreamBlobs()
     {
         var builder = this.CreateServiceProvider().GetRequiredService<BlobStorageGraphBuilder>();
@@ -57,14 +57,18 @@ public class BlobStorageStreamTests
                 callCount++;
             })
             .Returns(new[] { new StoredBlob { Name = "name" } });
+        this.blobStorageServiceMock
+            .Setup(s => s.GetBlobContentAsync(It.IsAny<string>(), It.IsAny<string>(),
+                It.IsAny<Func<BinaryData, BinaryData>>()))
+            .ReturnsAsync(new BinaryData(new byte[] { 1, 2, 3 }));
 
         await task;
 
         this.blobStorageServiceMock.Verify(s =>
-            s.SaveBytesAsBlob(It.IsAny<BinaryData>(),"target/prefix/to/blobs", "name", true));
+            s.SaveBytesAsBlob(It.IsAny<BinaryData>(),"s3a://target-bucket/target", "name", true));
         this.blobStorageServiceMock.Verify(s => s.ListBlobsAsEnumerable("s3a://source-bucket/prefix/to/blobs"));
         this.blobStorageServiceMock.Verify(s
-            => s.RemoveBlob("prefix/to/blobs", "name"));
+            => s.RemoveBlob("s3a://source-bucket/prefix/to/blobs", "name"));
     }
     
     [Fact]

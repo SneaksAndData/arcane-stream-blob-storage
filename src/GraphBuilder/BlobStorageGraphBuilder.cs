@@ -44,6 +44,7 @@ public class BlobStorageGraphBuilder : IStreamGraphBuilder<BlobStorageStreamCont
         {
             throw new ConfigurationException("Source path is invalid, only Amazon S3 paths are supported");
         }
+
         if (!AmazonS3StoragePath.IsAmazonS3Path(context.TargetPath))
         {
             throw new ConfigurationException("Target path is invalid, only Amazon S3 paths are supported");
@@ -56,30 +57,48 @@ public class BlobStorageGraphBuilder : IStreamGraphBuilder<BlobStorageStreamCont
             this.sourceBlobStorageService,
             context.ChangeCaptureInterval);
         return Source.FromGraph(source)
-            .Throttle(context.ElementsPerSecond, TimeSpan.FromSeconds(1), context.RequestThrottleBurst, ThrottleMode.Shaping)
+            .Throttle(context.ElementsPerSecond, TimeSpan.FromSeconds(1), context.RequestThrottleBurst,
+                ThrottleMode.Shaping)
             .SelectAsync(context.ReadParallelism, b => this.GetBlobContentAsync(parsedSourcePath, b))
             .SelectAsync(context.WriteParallelism, b => this.SaveBlobContentAsync(parsedTargetPath, b))
             .ViaMaterialized(KillSwitches.Single<(IStoragePath, string)>(), Keep.Right)
-            .ToMaterialized(context.GetSink(this.sourceBlobStorageWriter), Keep.Both);
+            .ToMaterialized(context.GetSink(this.RemoveSource), Keep.Both);
     }
 
 
-    private Task<(AmazonS3StoragePath, string, BinaryData)> GetBlobContentAsync(AmazonS3StoragePath rootPath, string blobPath)
+    private Task<(IStoragePath, string, BinaryData)> GetBlobContentAsync(IStoragePath rootPath, string blobPath)
     {
-        var path = "s3a://" + $"{rootPath.Bucket}/{rootPath.ObjectKey}".Replace("//", "/");
-        this.logger.LogInformation("Reading blob content from {RootPath}/{BlobPath}", rootPath.ObjectKey, blobPath);
+        this.logger.LogInformation("Reading blob content from {BlobPath}", rootPath.Join(blobPath).ToHdfsPath());
         return this.sourceBlobStorageReader
-            .GetBlobContentAsync(path, blobPath, data => data)
-            .Map(d => (rootPath, blobPath, d));
+            .GetBlobContentAsync(rootPath.ToHdfsPath(), blobPath, data => data)
+            .Map(data =>
+            {
+                if (data == null)
+                {
+                    throw new ProcessingException(rootPath, blobPath);
+                }
+
+                return (rootPath, blobPath, data);
+            });
     }
 
-    private Task<(IStoragePath, string)> SaveBlobContentAsync(AmazonS3StoragePath targetPath, (IStoragePath, string, BinaryData) writeRequest)
+    private Task<(IStoragePath, string)> SaveBlobContentAsync(IStoragePath targetPath, (IStoragePath, string, BinaryData) writeRequest)
     {
-        var path = "s3a://" + $"{targetPath.Bucket}/{targetPath.ObjectKey}".Replace("//", "/");
-        
         var (rootPath, blobName, data) = writeRequest;
+        this.logger.LogInformation("Saving blob content to {BlobPath}", targetPath.Join(blobName).ToHdfsPath());
         return this.targetBlobStorageService
-            .SaveBytesAsBlob(data, path, blobName, overwrite: true)
+            .SaveBytesAsBlob(data, targetPath.ToHdfsPath(), blobName, overwrite: true)
             .Map(_ => (rootPath, blobName));
+    }
+
+    private async Task RemoveSource((IStoragePath, string) deleteRequest)
+    {
+        var (sourceRoot, sourceBlobName) = deleteRequest;
+        this.logger.LogInformation("Removing blob content from {BlobPath}", sourceRoot.Join(sourceBlobName).ToHdfsPath());
+        var res = await this.sourceBlobStorageWriter.RemoveBlob(sourceRoot.ToHdfsPath(), sourceBlobName);
+        if (!res)
+        {
+            throw new SinkException($"Failed to remove blob {sourceBlobName} from {sourceRoot}");
+        }
     }
 }

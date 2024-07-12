@@ -22,6 +22,6 @@ rules:
       apiGroups:
         - streaming.sneaksanddata.com
       resources:
-        - blob-storages
-        - blob-storages/status
+        - blob-storage-streams
+        - blob-storage-streams/status
 {{- end }}

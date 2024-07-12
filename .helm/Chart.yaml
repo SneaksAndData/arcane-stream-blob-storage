@@ -3,4 +3,4 @@ name: arcane-stream-blob-storage
 description: Blob Storage stream plugin for Arcane Data Streaming service
 type: application
 version: 0.0.0
-appVersion: "0.0.0"
+appVersion: 0.0.0

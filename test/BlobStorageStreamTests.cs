@@ -1,11 +1,12 @@
 ﻿using System;
-using System.Threading;
 using System.Threading.Tasks;
 using Akka.Actor;
 using Akka.Streams;
+using Arcane.Stream.BlobStorage.Extensions;
 using Arcane.Stream.BlobStorage.GraphBuilder;
 using Arcane.Stream.BlobStorage.Models;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Moq;
 using Snd.Sdk.Storage.Base;
 using Snd.Sdk.Storage.Models;
@@ -20,8 +21,6 @@ public class BlobStorageStreamTests
 
     // Mocks
     private readonly Mock<IBlobStorageService> blobStorageServiceMock = new();
-    private readonly TaskCompletionSource tcs = new();
-    private readonly CancellationTokenSource cts = new();
 
     [Fact]
     public async Task TestCanStreamBlobs()
@@ -57,15 +56,19 @@ public class BlobStorageStreamTests
 
                 callCount++;
             })
-            .Returns(new StoredBlob[] { new StoredBlob { Name = "name" } });
+            .Returns(new[] { new StoredBlob { Name = "name" } });
+        this.blobStorageServiceMock
+            .Setup(s => s.GetBlobContentAsync(It.IsAny<string>(), It.IsAny<string>(),
+                It.IsAny<Func<BinaryData, BinaryData>>()))
+            .ReturnsAsync(new BinaryData(new byte[] { 1, 2, 3 }));
 
         await task;
 
         this.blobStorageServiceMock.Verify(s =>
-            s.SaveBytesAsBlob(It.IsAny<BinaryData>(),"target/prefix/to/blobs", "name", true));
-        this.blobStorageServiceMock.Verify(s => s.ListBlobsAsEnumerable("prefix/to/blobs"));
+            s.SaveBytesAsBlob(It.IsAny<BinaryData>(),"s3a://target-bucket/target", "name", true));
+        this.blobStorageServiceMock.Verify(s => s.ListBlobsAsEnumerable("s3a://source-bucket/prefix/to/blobs"));
         this.blobStorageServiceMock.Verify(s
-            => s.RemoveBlob("prefix/to/blobs", "name"));
+            => s.RemoveBlob("s3a://source-bucket/prefix/to/blobs", "name"));
     }
     
     [Fact]
@@ -99,7 +102,7 @@ public class BlobStorageStreamTests
 
                 callCount++;
             })
-            .Returns(new StoredBlob[] { new StoredBlob { Name = "name" } });
+            .Returns(new[] { new StoredBlob { Name = "name" } });
         
         await Assert.ThrowsAnyAsync<AggregateException>( async () => await task);
     }
@@ -110,9 +113,11 @@ public class BlobStorageStreamTests
         return new ServiceCollection()
             .AddSingleton<IMaterializer>(this.actorSystem.Materializer())
             .AddSingleton(this.actorSystem)
-            .AddSingleton(this.blobStorageServiceMock.Object)
+            .AddSingleton<IBlobStorageListService>(this.blobStorageServiceMock.Object)
             .AddSingleton<IBlobStorageReader>(this.blobStorageServiceMock.Object)
-            .AddSingleton<IBlobStorageWriter>(this.blobStorageServiceMock.Object)
+            .AddKeyedSingleton<IBlobStorageWriter>(StorageType.SOURCE, this.blobStorageServiceMock.Object)
+            .AddKeyedSingleton<IBlobStorageWriter>(StorageType.TARGET, this.blobStorageServiceMock.Object)
+            .AddSingleton(new Mock<ILogger<BlobStorageGraphBuilder>>().Object)
             .AddSingleton<BlobStorageGraphBuilder>()
             .BuildServiceProvider();
     }

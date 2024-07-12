@@ -18,7 +18,7 @@ namespace Arcane.Stream.BlobStorage.GraphBuilder;
 
 public class BlobStorageGraphBuilder : IStreamGraphBuilder<BlobStorageStreamContext>
 {
-    private readonly IBlobStorageListService sourceBlobStorageService;
+    private readonly IBlobStorageListService sourceBlobListStorageService;
     private readonly IBlobStorageWriter targetBlobStorageService;
     private readonly IBlobStorageWriter sourceBlobStorageWriter;
     private readonly IBlobStorageReader sourceBlobStorageReader;

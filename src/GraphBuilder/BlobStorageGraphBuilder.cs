@@ -2,6 +2,7 @@
 using System.Threading.Tasks;
 using Akka.Streams;
 using Akka.Streams.Dsl;
+using Akka.Streams.Supervision;
 using Arcane.Framework.Services.Base;
 using Arcane.Framework.Sources.BlobStorage;
 using Arcane.Stream.BlobStorage.Exceptions;
@@ -31,13 +32,13 @@ public class BlobStorageGraphBuilder : IStreamGraphBuilder<BlobStorageStreamCont
         [FromKeyedServices(StorageType.TARGET)] IBlobStorageWriter targetBlobStorageService,
         ILogger<BlobStorageGraphBuilder> logger)
     {
-        this.sourceBlobStorageService = sourceBlobStorageService;
+        this.sourceBlobListStorageService = sourceBlobStorageService;
         this.sourceBlobStorageReader = sourceBlobStorageReader;
         this.sourceBlobStorageWriter = sourceBlobStorageWriter;
         this.targetBlobStorageService = targetBlobStorageService;
         this.logger = logger;
     }
-
+    
     public IRunnableGraph<(UniqueKillSwitch, Task)> BuildGraph(BlobStorageStreamContext context)
     {
         if (!AmazonS3StoragePath.IsAmazonS3Path(context.SourcePath))
@@ -54,17 +55,18 @@ public class BlobStorageGraphBuilder : IStreamGraphBuilder<BlobStorageStreamCont
         var parsedTargetPath = new AmazonS3StoragePath(context.TargetPath);
         var source = BlobStorageSource.Create(
             context.SourcePath,
-            this.sourceBlobStorageService,
+            this.sourceBlobListStorageService,
             context.ChangeCaptureInterval);
+        
         return Source.FromGraph(source)
             .Throttle(context.ElementsPerSecond, TimeSpan.FromSeconds(1), context.RequestThrottleBurst,
                 ThrottleMode.Shaping)
             .SelectAsync(context.ReadParallelism, b => this.GetBlobContentAsync(parsedSourcePath, b))
             .SelectAsync(context.WriteParallelism, b => this.SaveBlobContentAsync(parsedTargetPath, b))
             .ViaMaterialized(KillSwitches.Single<(IStoragePath, string)>(), Keep.Right)
-            .ToMaterialized(context.GetSink(this.RemoveSource), Keep.Both);
+            .ToMaterialized(context.GetSink(this.RemoveSource), Keep.Both)
+            .WithAttributes(ActorAttributes.CreateSupervisionStrategy(DecideOnFailure));
     }
-
 
     private Task<(IStoragePath, string, BinaryData)> GetBlobContentAsync(IStoragePath rootPath, string blobPath)
     {
@@ -100,5 +102,14 @@ public class BlobStorageGraphBuilder : IStreamGraphBuilder<BlobStorageStreamCont
         {
             throw new SinkException($"Failed to remove blob {sourceBlobName} from {sourceRoot}");
         }
+    }
+    
+    private static Directive DecideOnFailure(Exception ex)
+    {
+        return ex switch
+        {
+            ProcessingException => Directive.Resume,
+            _ => Directive.Stop
+        };
     }
 }

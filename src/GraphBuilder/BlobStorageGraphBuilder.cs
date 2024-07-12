@@ -8,6 +8,7 @@ using Arcane.Stream.BlobStorage.Exceptions;
 using Arcane.Stream.BlobStorage.Extensions;
 using Arcane.Stream.BlobStorage.Models;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Snd.Sdk.Storage.Base;
 using Snd.Sdk.Storage.Models.Base;
 using Snd.Sdk.Storage.Models.BlobPath;
@@ -21,17 +22,20 @@ public class BlobStorageGraphBuilder : IStreamGraphBuilder<BlobStorageStreamCont
     private readonly IBlobStorageWriter targetBlobStorageService;
     private readonly IBlobStorageWriter sourceBlobStorageWriter;
     private readonly IBlobStorageReader sourceBlobStorageReader;
+    private readonly ILogger<BlobStorageGraphBuilder> logger;
 
     public BlobStorageGraphBuilder(
         IBlobStorageListService sourceBlobStorageService,
         IBlobStorageReader sourceBlobStorageReader,
         [FromKeyedServices(StorageType.SOURCE)] IBlobStorageWriter sourceBlobStorageWriter,
-        [FromKeyedServices(StorageType.TARGET)] IBlobStorageWriter targetBlobStorageService)
+        [FromKeyedServices(StorageType.TARGET)] IBlobStorageWriter targetBlobStorageService,
+        ILogger<BlobStorageGraphBuilder> logger)
     {
         this.sourceBlobStorageService = sourceBlobStorageService;
         this.sourceBlobStorageReader = sourceBlobStorageReader;
         this.sourceBlobStorageWriter = sourceBlobStorageWriter;
         this.targetBlobStorageService = targetBlobStorageService;
+        this.logger = logger;
     }
 
     public IRunnableGraph<(UniqueKillSwitch, Task)> BuildGraph(BlobStorageStreamContext context)
@@ -62,6 +66,7 @@ public class BlobStorageGraphBuilder : IStreamGraphBuilder<BlobStorageStreamCont
 
     private Task<(IStoragePath, string, BinaryData)> GetBlobContentAsync(IStoragePath rootPath, string blobPath)
     {
+        this.logger.LogInformation("Reading blob content from {RootPath}/{BlobPath}", rootPath.ObjectKey, blobPath);
         return this.sourceBlobStorageReader
             .GetBlobContentAsync(rootPath.ObjectKey, blobPath, data => data)
             .Map(d => (rootPath, blobPath, d));

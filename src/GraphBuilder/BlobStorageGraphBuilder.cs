@@ -64,20 +64,22 @@ public class BlobStorageGraphBuilder : IStreamGraphBuilder<BlobStorageStreamCont
     }
 
 
-    private Task<(IStoragePath, string, BinaryData)> GetBlobContentAsync(IStoragePath rootPath, string blobPath)
+    private Task<(AmazonS3StoragePath, string, BinaryData)> GetBlobContentAsync(AmazonS3StoragePath rootPath, string blobPath)
     {
+        var path = "s3a://" + $"{rootPath.Bucket}/{rootPath.ObjectKey}".Replace("//", "/");
         this.logger.LogInformation("Reading blob content from {RootPath}/{BlobPath}", rootPath.ObjectKey, blobPath);
         return this.sourceBlobStorageReader
-            .GetBlobContentAsync(rootPath.ObjectKey, blobPath, data => data)
+            .GetBlobContentAsync(path, blobPath, data => data)
             .Map(d => (rootPath, blobPath, d));
     }
 
-    private Task<(IStoragePath, string)> SaveBlobContentAsync(IStoragePath targetPath, (IStoragePath, string, BinaryData) writeRequest)
+    private Task<(IStoragePath, string)> SaveBlobContentAsync(AmazonS3StoragePath targetPath, (IStoragePath, string, BinaryData) writeRequest)
     {
+        var path = "s3a://" + $"{targetPath.Bucket}/{targetPath.ObjectKey}".Replace("//", "/");
+        
         var (rootPath, blobName, data) = writeRequest;
-        var targetFullPath = $"{targetPath.ObjectKey}/{rootPath.ObjectKey}".Replace("//", "/");
         return this.targetBlobStorageService
-            .SaveBytesAsBlob(data, targetFullPath, blobName, overwrite: true)
+            .SaveBytesAsBlob(data, path, blobName, overwrite: true)
             .Map(_ => (rootPath, blobName));
     }
 }

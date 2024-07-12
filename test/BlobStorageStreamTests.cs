@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Threading;
 using System.Threading.Tasks;
 using Akka.Actor;
 using Akka.Streams;
@@ -57,7 +56,7 @@ public class BlobStorageStreamTests
 
                 callCount++;
             })
-            .Returns(new StoredBlob[] { new StoredBlob { Name = "name" } });
+            .Returns(new[] { new StoredBlob { Name = "name" } });
 
         await task;
 
@@ -99,7 +98,7 @@ public class BlobStorageStreamTests
 
                 callCount++;
             })
-            .Returns(new StoredBlob[] { new StoredBlob { Name = "name" } });
+            .Returns(new[] { new StoredBlob { Name = "name" } });
         
         await Assert.ThrowsAnyAsync<AggregateException>( async () => await task);
     }

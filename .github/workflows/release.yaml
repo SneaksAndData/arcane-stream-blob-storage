@@ -6,9 +6,7 @@ jobs:
   create_release:
     name: Create Release
     runs-on: ubuntu-latest
-    # Remove the line below and uncomment the next one
-    if: ${{ false }}
-    #if: ${{ github.ref == 'refs/heads/main' }}
+    if: ${{ github.ref == 'refs/heads/main' }}
 
     steps:
       - uses: actions/checkout@v4

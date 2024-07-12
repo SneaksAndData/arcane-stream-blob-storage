@@ -1,7 +1,9 @@
 ﻿using System;
+using System.Diagnostics.CodeAnalysis;
 using Amazon.S3;
 using Arcane.Stream.BlobStorage.Exceptions;
 using Arcane.Stream.BlobStorage.Models;
+using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Logging;
@@ -29,6 +31,7 @@ public enum StorageType
     TARGET
 }
 
+[ExcludeFromCodeCoverage(Justification = "DI Container helpers")]
 public static class ServiceCollectionExtensions
 {
     public static IServiceCollection AddSourceListService(this IServiceCollection services)

@@ -62,7 +62,7 @@ public class BlobStorageStreamTests
 
         this.blobStorageServiceMock.Verify(s =>
             s.SaveBytesAsBlob(It.IsAny<BinaryData>(),"target/prefix/to/blobs", "name", true));
-        this.blobStorageServiceMock.Verify(s => s.ListBlobsAsEnumerable("prefix/to/blobs"));
+        this.blobStorageServiceMock.Verify(s => s.ListBlobsAsEnumerable("s3a://source-bucket/prefix/to/blobs"));
         this.blobStorageServiceMock.Verify(s
             => s.RemoveBlob("prefix/to/blobs", "name"));
     }

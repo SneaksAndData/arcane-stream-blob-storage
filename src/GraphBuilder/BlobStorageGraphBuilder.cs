@@ -48,8 +48,7 @@ public class BlobStorageGraphBuilder : IStreamGraphBuilder<BlobStorageStreamCont
         var parsedSourcePath = new AmazonS3StoragePath(context.SourcePath);
         var parsedTargetPath = new AmazonS3StoragePath(context.TargetPath);
         var source = BlobStorageSource.Create(
-            parsedSourcePath.Bucket,
-            parsedSourcePath.ObjectKey,
+            context.SourcePath,
             this.sourceBlobStorageService,
             context.ChangeCaptureInterval);
         return Source.FromGraph(source)

@@ -7,7 +7,7 @@
         <RootNamespace>Arcane.Stream.BlobStorage</RootNamespace>
     </PropertyGroup>
     <ItemGroup>
-        <PackageReference Include="Arcane.Framework" Version="0.0.22" />
+        <PackageReference Include="Arcane.Framework" Version="0.0.23" />
         <PackageReference Include="SnD.Sdk" Version="1.1.16" />
     </ItemGroup>
 

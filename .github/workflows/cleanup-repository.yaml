@@ -16,19 +16,19 @@ jobs:
     timeout-minutes: 10 # stop the task if it takes longer
 
     steps:
-      - name: Delete old package versions of ${{ github.repository }}
+      - name: Delete old package versions of ${{ github.event.repository.name }}
         uses: actions/delete-package-versions@v5.0.0
         with:
-          package-name: ${{ github.repository }}
+          package-name: ${{ github.event.repository.name }}
           package-type: container
           token: ${{ secrets.GITHUB_TOKEN }}
           min-versions-to-keep: 10
           delete-only-pre-release-versions: "true"
 
-      - name: Delete old package versions of helm/${{ github.repository }}
+      - name: Delete old package versions of helm/${{ github.event.repository.name }}
         uses: actions/delete-package-versions@v5.0.0
         with:
-          package-name: helm/${{ github.repository }}
+          package-name: helm/${{ github.event.repository.name }}
           package-type: container
           token: ${{ secrets.GITHUB_TOKEN }}
           min-versions-to-keep: 10

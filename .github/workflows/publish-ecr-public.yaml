@@ -1,5 +1,5 @@
 name: Publish Arcane.Stream.BlobStorage to ECR public registry
-run-name: Deploy ${{github.ref_name}} to public.ecr.aws by @${{ github.actor }}
+run-name: Publish Arcane.Stream.BlobStorage to public.ecr.aws by @${{ github.actor }}
 
 on:
   workflow_dispatch:
@@ -20,7 +20,7 @@ jobs:
   publish_image:
     name: Publish Docker Image to ECR Public
     runs-on: ubuntu-latest
-    if: ${{ startsWith(github.ref, 'refs/tags') }}
+    # if: ${{ startsWith(github.ref, 'refs/tags') }}
 
     permissions:
       contents: read
@@ -89,4 +89,4 @@ jobs:
         uses: akhilerm/tag-push-action@v2.2.0
         with:
           src: ${{ steps.meta.outputs.tags }}
-          dst: public.ecr.aws/s0t1h2z6/arcane-stream-blob-storage/${{ github.event.repository.name }}:${{ steps.meta.outputs.version }}
+          dst: public.ecr.aws/s0t1h2z6/arcane/${{ github.event.repository.name }}:${{ steps.meta.outputs.version }}

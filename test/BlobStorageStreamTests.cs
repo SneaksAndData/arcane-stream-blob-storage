@@ -8,6 +8,7 @@ using Arcane.Stream.BlobStorage.Models;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Moq;
+using Snd.Sdk.Metrics.Base;
 using Snd.Sdk.Storage.Base;
 using Snd.Sdk.Storage.Models;
 using Xunit;
@@ -118,6 +119,7 @@ public class BlobStorageStreamTests
             .AddKeyedSingleton<IBlobStorageWriter>(StorageType.SOURCE, this.blobStorageServiceMock.Object)
             .AddKeyedSingleton<IBlobStorageWriter>(StorageType.TARGET, this.blobStorageServiceMock.Object)
             .AddSingleton(new Mock<ILogger<BlobStorageGraphBuilder>>().Object)
+            .AddSingleton(new Mock<MetricsService>().Object)
             .AddSingleton<BlobStorageGraphBuilder>()
             .BuildServiceProvider();
     }

@@ -1,4 +1,6 @@
 ﻿using System;
+using System.Collections.Generic;
+using System.Text.Json;
 using Arcane.Framework.Contracts;
 using Arcane.Framework.Providers.Hosting;
 using Arcane.Stream.BlobStorage.Exceptions;
@@ -7,6 +9,7 @@ using Arcane.Stream.BlobStorage.GraphBuilder;
 using Arcane.Stream.BlobStorage.Models;
 using Microsoft.Extensions.Hosting;
 using Serilog;
+using SnD.Sdk.Extensions.Environment.Hosting;
 using Snd.Sdk.Logs.Providers;
 using Snd.Sdk.Metrics.Configurations;
 using Snd.Sdk.Metrics.Providers;
@@ -17,7 +20,19 @@ int exitCode;
 try
 {
     exitCode = await Host.CreateDefaultBuilder(args)
-        .AddDatadogLogging((_, _, configuration) => configuration.WriteTo.Console())
+        .AddDatadogLogging((_, _, configuration) =>
+        {
+            var loggingProperties = EnvironmentExtensions.GetDomainEnvironmentVariable("LOGGING_PROPERTIES");
+            if (!string.IsNullOrEmpty(loggingProperties))
+            {
+                var properties = JsonSerializer.Deserialize<Dictionary<string, string>>(loggingProperties);
+                foreach (var (key, value) in properties)
+                {
+                    configuration.Enrich.WithProperty(key, value);
+                }
+            }
+            configuration.WriteTo.Console();
+        })
         .ConfigureRequiredServices(services
             => services.AddStreamGraphBuilder<BlobStorageGraphBuilder, BlobStorageStreamContext>())
         .ConfigureAdditionalServices((services, context) =>

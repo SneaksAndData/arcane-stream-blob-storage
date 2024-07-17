@@ -15,5 +15,5 @@ public class DeclaredMetrics
     public const string OBJECTS_SIZE = "objects.size";
     
     /// <summary>Number of objects deleted by the streamer in the source bucket.</summary>
-    public const string OBJECTS_DELETED = "objects.size";
+    public const string OBJECTS_DELETED = "objects.deleted";
 }

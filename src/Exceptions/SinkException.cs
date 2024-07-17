@@ -7,7 +7,7 @@ namespace Arcane.Stream.BlobStorage.Exceptions;
 /// </summary>
 public class SinkException : Exception
 {
-    public SinkException(string message): base(message)
+    public SinkException(string message) : base(message)
     {
     }
 }

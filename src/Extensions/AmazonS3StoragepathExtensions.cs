@@ -18,7 +18,7 @@ public static class AmazonS3StoragePathExtensions
         return new SortedDictionary<string, string>
         {
             { "blob-storage.arcane.sneaksanddata.com/bucket", path.Bucket },
-            { "blob-storage.arcane.sneaksanddata.com/key", path.ObjectKey },
+            { "blob-storage.arcane.sneaksanddata.com/prefix", path.ObjectKey },
             { "arcane.sneaksanddata.com/kind", CodeExtensions.CamelCaseToSnakeCase(context.StreamKind) },
             { "arcane.sneaksanddata.com/stream_id", context.StreamId }
         };

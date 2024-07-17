@@ -28,7 +28,7 @@ public class BlobStorageGraphBuilder : IStreamGraphBuilder<BlobStorageStreamCont
     private readonly IBlobStorageReader sourceBlobStorageReader;
     private readonly ILogger<BlobStorageGraphBuilder> logger;
     private readonly MetricsService metricsService;
-    
+
     private SortedDictionary<string, string> sourceDimensions;
     private SortedDictionary<string, string> targetDimensions;
 
@@ -47,7 +47,7 @@ public class BlobStorageGraphBuilder : IStreamGraphBuilder<BlobStorageStreamCont
         this.logger = logger;
         this.metricsService = metricsService;
     }
-    
+
     public IRunnableGraph<(UniqueKillSwitch, Task)> BuildGraph(BlobStorageStreamContext context)
     {
         if (!AmazonS3StoragePath.IsAmazonS3Path(context.SourcePath))
@@ -59,7 +59,7 @@ public class BlobStorageGraphBuilder : IStreamGraphBuilder<BlobStorageStreamCont
         {
             throw new ConfigurationException("Target path is invalid, only Amazon S3 paths are supported");
         }
-        
+
         if (context.IsBackfilling)
         {
             throw new ConfigurationException("Backfilling is not supported for this stream type");
@@ -67,15 +67,15 @@ public class BlobStorageGraphBuilder : IStreamGraphBuilder<BlobStorageStreamCont
 
         var parsedSourcePath = new AmazonS3StoragePath(context.SourcePath);
         this.sourceDimensions = parsedSourcePath.ToMetricsTags(context);
-        
+
         var parsedTargetPath = new AmazonS3StoragePath(context.TargetPath);
-        this.targetDimensions= parsedTargetPath.ToMetricsTags(context);
-        
+        this.targetDimensions = parsedTargetPath.ToMetricsTags(context);
+
         var source = BlobStorageSource.Create(
             context.SourcePath,
             this.sourceBlobListStorageService,
             context.ChangeCaptureInterval);
-        
+
         return Source.FromGraph(source)
             .Throttle(context.ElementsPerSecond, TimeSpan.FromSeconds(1), context.RequestThrottleBurst, ThrottleMode.Shaping)
             .Select(document =>
@@ -127,7 +127,7 @@ public class BlobStorageGraphBuilder : IStreamGraphBuilder<BlobStorageStreamCont
             throw new SinkException($"Failed to remove blob {sourceBlobName} from {sourceRoot}");
         }
     }
-    
+
     private static Directive DecideOnFailure(Exception ex)
     {
         return ex switch

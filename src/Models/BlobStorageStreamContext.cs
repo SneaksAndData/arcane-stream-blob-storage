@@ -13,34 +13,34 @@ public class BlobStorageStreamContext : IStreamContext, IStreamContextWriter
     /// Source blob path. Should be in Proteus format.
     /// </summary>
     public string SourcePath { get; init; }
-    
+
     /// <summary>
     /// Target blob path. Should be in Proteus format.
     /// </summary>
     public string TargetPath { get; init; }
-    
+
     /// <summary>
     /// Parallelism for read operations (include listing blobs).
     /// </summary>
     public int ReadParallelism { get; init; }
-    
+
     /// <summary>
     /// Parallelism for write operations.
     /// </summary>
     public int WriteParallelism { get; init; }
-    
+
     /// <summary>
     /// Parallelism for delete operations.
     /// </summary>
     public int DeleteParallelism { get; init; }
-    
+
     /// <summary>
     /// How often to check for changes in the source blob storage.
     /// </summary>
     [JsonConverter(typeof(SecondsToTimeSpanConverter))]
     [JsonPropertyName("changeCaptureIntervalSeconds")]
     public TimeSpan ChangeCaptureInterval { get; init; }
-    
+
     /// <summary>
     /// Maximum allowed burst before throttling kicks in.
     /// </summary>

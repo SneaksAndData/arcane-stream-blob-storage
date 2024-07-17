@@ -36,9 +36,10 @@ public class BlobStorageStreamTests
             TargetPath = "s3a://target-bucket/target/",
             ChangeCaptureInterval = TimeSpan.FromSeconds(1),
             ElementsPerSecond = 1000,
-            RequestThrottleBurst = 100
+            RequestThrottleBurst = 100,
         };
 
+        context.SetStreamKind(nameof(this.TestCanStreamBlobs));
         this.blobStorageServiceMock.Setup(s
             => s.RemoveBlob(It.IsAny<string>(), It.IsAny<string>()))
             .ReturnsAsync(true);
@@ -88,6 +89,7 @@ public class BlobStorageStreamTests
             RequestThrottleBurst = 100
         };
 
+        context.SetStreamKind(nameof(this.TestFailsIfCannotDeleteBlob));
         var graph = builder.BuildGraph(context);
         var callCount = 0;
 

@@ -66,10 +66,10 @@ public class BlobStorageGraphBuilder : IStreamGraphBuilder<BlobStorageStreamCont
         }
 
         var parsedSourcePath = new AmazonS3StoragePath(context.SourcePath);
-        this.sourceDimensions = parsedSourcePath.ToMetricsTags();
+        this.sourceDimensions = parsedSourcePath.ToMetricsTags(context);
         
         var parsedTargetPath = new AmazonS3StoragePath(context.TargetPath);
-        this.targetDimensions= parsedTargetPath.ToMetricsTags();
+        this.targetDimensions= parsedTargetPath.ToMetricsTags(context);
         
         var source = BlobStorageSource.Create(
             context.SourcePath,

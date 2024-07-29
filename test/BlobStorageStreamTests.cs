@@ -62,7 +62,7 @@ public class BlobStorageStreamTests
         this.blobStorageServiceMock
             .Setup(s => s.GetBlobContentAsync(It.IsAny<string>(), It.IsAny<string>(),
                 It.IsAny<Func<BinaryData, BinaryData>>()))
-            .ReturnsAsync(new BinaryData(new byte[] { 1, 2, 3 }));
+            .ReturnsAsync(new BinaryData([1, 2, 3]));
 
         await task;
 

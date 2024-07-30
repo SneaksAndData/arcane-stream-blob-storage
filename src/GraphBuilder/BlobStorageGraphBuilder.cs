@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using Akka.Streams;
 using Akka.Streams.Dsl;
@@ -14,18 +15,17 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Snd.Sdk.Metrics.Base;
 using Snd.Sdk.Storage.Base;
-using Snd.Sdk.Storage.Models.Base;
 using Snd.Sdk.Storage.Models.BlobPath;
 using Snd.Sdk.Tasks;
 
 namespace Arcane.Stream.BlobStorage.GraphBuilder;
 
-public class BlobStorageGraphBuilder : IStreamGraphBuilder<BlobStorageStreamContext>
+public class BlobStorageGraphBuilder: IStreamGraphBuilder<BlobStorageStreamContext>
 {
     private readonly IBlobStorageListService sourceBlobListStorageService;
-    private readonly IBlobStorageWriter targetBlobStorageService;
-    private readonly IBlobStorageWriter sourceBlobStorageWriter;
-    private readonly IBlobStorageReader sourceBlobStorageReader;
+    private readonly IBlobStorageWriter<AmazonS3StoragePath> targetBlobStorageService;
+    private readonly IBlobStorageWriter<AmazonS3StoragePath> sourceBlobStorageWriter;
+    private readonly IBlobStorageReader<AmazonS3StoragePath> sourceBlobStorageReader;
     private readonly ILogger<BlobStorageGraphBuilder> logger;
     private readonly MetricsService metricsService;
 
@@ -34,9 +34,9 @@ public class BlobStorageGraphBuilder : IStreamGraphBuilder<BlobStorageStreamCont
 
     public BlobStorageGraphBuilder(
         IBlobStorageListService sourceBlobStorageService,
-        IBlobStorageReader sourceBlobStorageReader,
-        [FromKeyedServices(StorageType.SOURCE)] IBlobStorageWriter sourceBlobStorageWriter,
-        [FromKeyedServices(StorageType.TARGET)] IBlobStorageWriter targetBlobStorageService,
+        IBlobStorageReader<AmazonS3StoragePath> sourceBlobStorageReader,
+        [FromKeyedServices(StorageType.SOURCE)] IBlobStorageWriter<AmazonS3StoragePath> sourceBlobStorageWriter,
+        [FromKeyedServices(StorageType.TARGET)] IBlobStorageWriter<AmazonS3StoragePath> targetBlobStorageService,
         MetricsService metricsService,
         ILogger<BlobStorageGraphBuilder> logger)
     {
@@ -50,11 +50,6 @@ public class BlobStorageGraphBuilder : IStreamGraphBuilder<BlobStorageStreamCont
 
     public IRunnableGraph<(UniqueKillSwitch, Task)> BuildGraph(BlobStorageStreamContext context)
     {
-        if (!AmazonS3StoragePath.IsAmazonS3Path(context.SourcePath))
-        {
-            throw new ConfigurationException("Source path is invalid, only Amazon S3 paths are supported");
-        }
-
         if (!AmazonS3StoragePath.IsAmazonS3Path(context.TargetPath))
         {
             throw new ConfigurationException("Target path is invalid, only Amazon S3 paths are supported");
@@ -65,10 +60,10 @@ public class BlobStorageGraphBuilder : IStreamGraphBuilder<BlobStorageStreamCont
             throw new ConfigurationException("Backfilling is not supported for this stream type");
         }
 
-        var parsedSourcePath = new AmazonS3StoragePath(context.SourcePath);
+        var parsedSourcePath = GetPath(context.SourcePath);
         this.sourceDimensions = parsedSourcePath.ToMetricsTags(context);
 
-        var parsedTargetPath = new AmazonS3StoragePath(context.TargetPath);
+        var parsedTargetPath = GetPath(context.TargetPath);
         this.targetDimensions = parsedTargetPath.ToMetricsTags(context);
 
         var source = BlobStorageSource.Create(
@@ -85,16 +80,17 @@ public class BlobStorageGraphBuilder : IStreamGraphBuilder<BlobStorageStreamCont
             })
             .SelectAsync(context.ReadParallelism, b => this.GetBlobContentAsync(parsedSourcePath, b))
             .SelectAsync(context.WriteParallelism, b => this.SaveBlobContentAsync(parsedTargetPath, b))
-            .ViaMaterialized(KillSwitches.Single<(IStoragePath, string)>(), Keep.Right)
-            .ToMaterialized(context.GetSink(this.RemoveSource), Keep.Both)
+            .ViaMaterialized(KillSwitches.Single<AmazonS3StoragePath>(), Keep.Right)
+            .ToMaterialized(GetSink(context, this.RemoveSource), Keep.Both)
             .WithAttributes(ActorAttributes.CreateSupervisionStrategy(DecideOnFailure));
     }
 
-    private Task<(IStoragePath, string, BinaryData)> GetBlobContentAsync(IStoragePath rootPath, string blobPath)
+    private Task<(AmazonS3StoragePath, string, BinaryData)> GetBlobContentAsync(AmazonS3StoragePath rootPath, string blobPath)
     {
-        this.logger.LogDebug("Reading blob content from {BlobPath}", rootPath.Join(blobPath).ToHdfsPath());
+        var fullPath = new AmazonS3StoragePath(rootPath.Bucket, blobPath);
+        this.logger.LogDebug("Reading blob content from {Bucket}, {Key}", fullPath.Bucket, fullPath.ObjectKey);
         return this.sourceBlobStorageReader
-            .GetBlobContentAsync(rootPath.ToHdfsPath(), blobPath, data => data)
+            .GetBlobContentAsync(fullPath, data => data)
             .Map(data =>
             {
                 if (data == null)
@@ -106,25 +102,27 @@ public class BlobStorageGraphBuilder : IStreamGraphBuilder<BlobStorageStreamCont
             });
     }
 
-    private Task<(IStoragePath, string)> SaveBlobContentAsync(IStoragePath targetPath, (IStoragePath, string, BinaryData) writeRequest)
+    private Task<AmazonS3StoragePath> SaveBlobContentAsync(AmazonS3StoragePath targetRoot, (AmazonS3StoragePath, string, BinaryData) writeRequest)
     {
-        var (rootPath, blobName, data) = writeRequest;
-        this.logger.LogDebug("Saving blob content to {BlobPath}", targetPath.Join(blobName).ToHdfsPath());
+        var (sourceRoot, sourceKey, data) = writeRequest;
+        
+        var targetKey = sourceKey.TrimStart(targetRoot.ObjectKey.ToArray());
+        var finalTargetPath = targetRoot.Join(targetKey);
+        this.logger.LogInformation("Saving blob content to {BlobPath}", finalTargetPath);
         this.metricsService.Increment(DeclaredMetrics.OBJECTS_OUTGOING, this.targetDimensions);
         return this.targetBlobStorageService
-            .SaveBytesAsBlob(data, targetPath.ToHdfsPath(), blobName, overwrite: true)
-            .Map(_ => (rootPath, blobName));
+            .SaveBytesAsBlob(data, finalTargetPath, overwrite: true)
+            .Map(_ => new AmazonS3StoragePath(sourceRoot.Bucket, sourceKey));
     }
 
-    private async Task RemoveSource((IStoragePath, string) deleteRequest)
+    private async Task RemoveSource(AmazonS3StoragePath pathToDelete)
     {
-        var (sourceRoot, sourceBlobName) = deleteRequest;
-        this.logger.LogDebug("Removing blob content from {BlobPath}", sourceRoot.Join(sourceBlobName).ToHdfsPath());
+        this.logger.LogDebug("Removing blob content from {BlobPath}", pathToDelete);
         this.metricsService.Increment(DeclaredMetrics.OBJECTS_DELETED, this.sourceDimensions);
-        var success = await this.sourceBlobStorageWriter.RemoveBlob(sourceRoot.ToHdfsPath(), sourceBlobName);
+        var success = await this.sourceBlobStorageWriter.RemoveBlob(pathToDelete);
         if (!success)
         {
-            throw new SinkException($"Failed to remove blob {sourceBlobName} from {sourceRoot}");
+            throw new SinkException($"Failed to remove blob {pathToDelete}");
         }
     }
 
@@ -135,5 +133,23 @@ public class BlobStorageGraphBuilder : IStreamGraphBuilder<BlobStorageStreamCont
             ProcessingException => Directive.Resume,
             _ => Directive.Stop
         };
+    }
+    
+    private static AmazonS3StoragePath GetPath(string path)
+    {
+        if (!AmazonS3StoragePath.IsAmazonS3Path(path))
+        {
+            throw new ConfigurationException("Source path is invalid, only Amazon S3 paths are supported");
+        }
+
+        return new AmazonS3StoragePath(path);
+    }
+    
+    private static Sink<AmazonS3StoragePath, Task> GetSink(BlobStorageStreamContext context, Func<AmazonS3StoragePath, Task> action)
+    {
+        return Sink.ForEachAsync<AmazonS3StoragePath>(context.DeleteParallelism, async deleteRequest =>
+        {
+            await action(deleteRequest);
+        }).MapMaterializedValue(v => (Task)v);
     }
 }

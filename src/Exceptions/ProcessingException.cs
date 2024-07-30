@@ -1,5 +1,6 @@
 ﻿using System;
 using Snd.Sdk.Storage.Models.Base;
+using Snd.Sdk.Storage.Models.BlobPath;
 
 namespace Arcane.Stream.BlobStorage.Exceptions;
 
@@ -8,7 +9,7 @@ namespace Arcane.Stream.BlobStorage.Exceptions;
 /// </summary>
 public class ProcessingException : Exception
 {
-    public ProcessingException(IStoragePath path, string blobName)
+    public ProcessingException(AmazonS3StoragePath path, string blobName)
         : base($"Failed to download {path.Join(blobName).ToHdfsPath()}")
     {
     }

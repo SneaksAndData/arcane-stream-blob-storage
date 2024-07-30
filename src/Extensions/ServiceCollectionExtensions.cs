@@ -3,7 +3,6 @@ using System.Diagnostics.CodeAnalysis;
 using Amazon.S3;
 using Arcane.Stream.BlobStorage.Exceptions;
 using Arcane.Stream.BlobStorage.Models;
-using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Logging;
@@ -53,7 +52,7 @@ public static class ServiceCollectionExtensions
 
     public static IServiceCollection AddSourceReader(this IServiceCollection services)
     {
-        services.TryAddSingleton<IBlobStorageReader>(sp =>
+        services.TryAddSingleton<IBlobStorageReader<AmazonS3StoragePath>>(sp =>
         {
             var context = sp.GetRequiredService<BlobStorageStreamContext>();
             if (AmazonS3StoragePath.IsAmazonS3Path(context.SourcePath))
@@ -70,7 +69,7 @@ public static class ServiceCollectionExtensions
 
     public static IServiceCollection AddTargetWriter(this IServiceCollection services)
     {
-        services.TryAddKeyedSingleton<IBlobStorageWriter>(StorageType.TARGET, (sp, key) =>
+        services.TryAddKeyedSingleton<IBlobStorageWriter<AmazonS3StoragePath>>(StorageType.TARGET, (sp, key) =>
         {
             var context = sp.GetRequiredService<BlobStorageStreamContext>();
             if (AmazonS3StoragePath.IsAmazonS3Path(context.SourcePath))
@@ -87,7 +86,7 @@ public static class ServiceCollectionExtensions
 
     public static IServiceCollection AddSourceWriter(this IServiceCollection services)
     {
-        services.TryAddKeyedSingleton<IBlobStorageWriter>(StorageType.SOURCE, (sp, key) =>
+        services.TryAddKeyedSingleton<IBlobStorageWriter<AmazonS3StoragePath>>(StorageType.SOURCE, (sp, key) =>
         {
             var context = sp.GetRequiredService<BlobStorageStreamContext>();
             if (AmazonS3StoragePath.IsAmazonS3Path(context.SourcePath))
@@ -128,7 +127,8 @@ public static class ServiceCollectionExtensions
             ForcePathStyle = true,
             ServiceURL = config.ServiceUrl.ToString(),
             UseAccelerateEndpoint = false,
-            AuthenticationRegion = config.AuthenticationRegion
+            AuthenticationRegion = config.AuthenticationRegion,
+            SignatureVersion = config.SignatureVersion
         };
         var client = new AmazonS3Client(config.AccessKey, config.SecretKey, clientConfig);
         services.TryAddKeyedSingleton<IAmazonS3>(storageType, client);

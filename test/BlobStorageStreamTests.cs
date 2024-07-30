@@ -8,9 +8,11 @@ using Arcane.Stream.BlobStorage.Models;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Moq;
+using Snd.Sdk.Helpers;
 using Snd.Sdk.Metrics.Base;
 using Snd.Sdk.Storage.Base;
 using Snd.Sdk.Storage.Models;
+using Snd.Sdk.Storage.Models.BlobPath;
 using Xunit;
 
 namespace Arcane.Stream.BlobStorage.Tests;
@@ -21,7 +23,7 @@ public class BlobStorageStreamTests
     private readonly ActorSystem actorSystem = ActorSystem.Create(nameof(BlobStorageStreamTests));
 
     // Mocks
-    private readonly Mock<IBlobStorageService> blobStorageServiceMock = new();
+    private readonly Mock<IBlobStorageService<AmazonS3StoragePath>> blobStorageServiceMock = new();
 
     [Fact]
     public async Task TestCanStreamBlobs()
@@ -33,7 +35,7 @@ public class BlobStorageStreamTests
             WriteParallelism = 1,
             DeleteParallelism = 1,
             SourcePath = "s3a://source-bucket/prefix/to/blobs",
-            TargetPath = "s3a://target-bucket/target/",
+            TargetPath = "s3a://target-bucket/prefix/to/blobs",
             ChangeCaptureInterval = TimeSpan.FromSeconds(1),
             ElementsPerSecond = 1000,
             RequestThrottleBurst = 100,
@@ -41,7 +43,7 @@ public class BlobStorageStreamTests
 
         context.SetStreamKind(nameof(this.TestCanStreamBlobs));
         this.blobStorageServiceMock.Setup(s
-            => s.RemoveBlob(It.IsAny<string>(), It.IsAny<string>()))
+            => s.RemoveBlob(It.IsAny<AmazonS3StoragePath>()))
             .ReturnsAsync(true);
         var graph = builder.BuildGraph(context);
         var callCount = 0;
@@ -58,19 +60,22 @@ public class BlobStorageStreamTests
 
                 callCount++;
             })
-            .Returns(new[] { new StoredBlob { Name = "name" } });
+            .Returns(new[] { new StoredBlob { Name = "prefix/to/blobs/name" } });
         this.blobStorageServiceMock
-            .Setup(s => s.GetBlobContentAsync(It.IsAny<string>(), It.IsAny<string>(),
+            .Setup(s => s.GetBlobContentAsync(It.IsAny<AmazonS3StoragePath>(), 
                 It.IsAny<Func<BinaryData, BinaryData>>()))
             .ReturnsAsync(new BinaryData([1, 2, 3]));
 
         await task;
 
         this.blobStorageServiceMock.Verify(s =>
-            s.SaveBytesAsBlob(It.IsAny<BinaryData>(), "s3a://target-bucket/target", "name", true));
-        this.blobStorageServiceMock.Verify(s => s.ListBlobsAsEnumerable("s3a://source-bucket/prefix/to/blobs"));
+            s.SaveBytesAsBlob( It.IsAny<BinaryData>(), "s3a://target-bucket/prefix/to/blobs/name".AsAmazonS3Path(), true));
+        
+        this.blobStorageServiceMock.Verify(s =>
+            s.ListBlobsAsEnumerable("s3a://source-bucket/prefix/to/blobs"));
+        
         this.blobStorageServiceMock.Verify(s
-            => s.RemoveBlob("s3a://source-bucket/prefix/to/blobs", "name"));
+            => s.RemoveBlob("s3a://source-bucket/prefix/to/blobs/name".AsAmazonS3Path()));
     }
 
     [Fact]
@@ -117,9 +122,9 @@ public class BlobStorageStreamTests
             .AddSingleton<IMaterializer>(this.actorSystem.Materializer())
             .AddSingleton(this.actorSystem)
             .AddSingleton<IBlobStorageListService>(this.blobStorageServiceMock.Object)
-            .AddSingleton<IBlobStorageReader>(this.blobStorageServiceMock.Object)
-            .AddKeyedSingleton<IBlobStorageWriter>(StorageType.SOURCE, this.blobStorageServiceMock.Object)
-            .AddKeyedSingleton<IBlobStorageWriter>(StorageType.TARGET, this.blobStorageServiceMock.Object)
+            .AddSingleton<IBlobStorageReader<AmazonS3StoragePath>>(this.blobStorageServiceMock.Object)
+            .AddKeyedSingleton<IBlobStorageWriter<AmazonS3StoragePath>>(StorageType.SOURCE, this.blobStorageServiceMock.Object)
+            .AddKeyedSingleton<IBlobStorageWriter<AmazonS3StoragePath>>(StorageType.TARGET, this.blobStorageServiceMock.Object)
             .AddSingleton(new Mock<ILogger<BlobStorageGraphBuilder>>().Object)
             .AddSingleton(new Mock<MetricsService>().Object)
             .AddSingleton<BlobStorageGraphBuilder>()

@@ -5,6 +5,8 @@ using System.Threading.Tasks;
 using Akka.Streams;
 using Akka.Streams.Dsl;
 using Akka.Streams.Supervision;
+using Akka.Util;
+using Akka.Util.Extensions;
 using Arcane.Framework.Services.Base;
 using Arcane.Framework.Sources.BlobStorage;
 using Arcane.Stream.BlobStorage.Contracts;
@@ -13,6 +15,7 @@ using Arcane.Stream.BlobStorage.Extensions;
 using Arcane.Stream.BlobStorage.Models;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Snd.Sdk.ActorProviders;
 using Snd.Sdk.Metrics.Base;
 using Snd.Sdk.Storage.Base;
 using Snd.Sdk.Storage.Models.BlobPath;
@@ -79,13 +82,14 @@ public class BlobStorageGraphBuilder: IStreamGraphBuilder<BlobStorageStreamConte
                 return document;
             })
             .SelectAsync(context.ReadParallelism, b => this.GetBlobContentAsync(parsedSourcePath, b))
+            .CollectOption()
             .SelectAsync(context.WriteParallelism, b => this.SaveBlobContentAsync(parsedTargetPath, b))
             .ViaMaterialized(KillSwitches.Single<AmazonS3StoragePath>(), Keep.Right)
             .ToMaterialized(GetSink(context, this.RemoveSource), Keep.Both)
             .WithAttributes(ActorAttributes.CreateSupervisionStrategy(DecideOnFailure));
     }
 
-    private Task<(AmazonS3StoragePath, string, BinaryData)> GetBlobContentAsync(AmazonS3StoragePath rootPath, string blobPath)
+    private Task<Option<(AmazonS3StoragePath, string, BinaryData)>> GetBlobContentAsync(AmazonS3StoragePath rootPath, string blobPath)
     {
         var fullPath = new AmazonS3StoragePath(rootPath.Bucket, blobPath);
         this.logger.LogDebug("Reading blob content from {Bucket}, {Key}", fullPath.Bucket, fullPath.ObjectKey);
@@ -95,10 +99,10 @@ public class BlobStorageGraphBuilder: IStreamGraphBuilder<BlobStorageStreamConte
             {
                 if (data == null)
                 {
-                    throw new ProcessingException(rootPath, blobPath);
+                    return Option<(AmazonS3StoragePath, string, BinaryData)>.None;
                 }
                 this.metricsService.Count(DeclaredMetrics.OBJECTS_SIZE, data.ToMemory().Length, this.sourceDimensions);
-                return (rootPath, blobPath, data);
+                return (rootPath, blobPath, data).AsOption();
             });
     }
 
@@ -130,7 +134,6 @@ public class BlobStorageGraphBuilder: IStreamGraphBuilder<BlobStorageStreamConte
     {
         return ex switch
         {
-            ProcessingException => Directive.Resume,
             _ => Directive.Stop
         };
     }

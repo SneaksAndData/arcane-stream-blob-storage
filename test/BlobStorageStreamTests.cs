@@ -28,6 +28,7 @@ public class BlobStorageStreamTests
     [Fact]
     public async Task TestCanStreamBlobs()
     {
+        // Arrange 
         var builder = this.CreateServiceProvider().GetRequiredService<BlobStorageGraphBuilder>();
         var context = new BlobStorageStreamContext
         {
@@ -48,7 +49,9 @@ public class BlobStorageStreamTests
         var graph = builder.BuildGraph(context);
         var callCount = 0;
 
+        // Act
         var (killSwitch, task) = graph.Run(this.actorSystem.Materializer());
+        
         this.blobStorageServiceMock
             .Setup(s => s.ListBlobsAsEnumerable(It.IsAny<string>()))
             .Callback(() =>
@@ -68,6 +71,7 @@ public class BlobStorageStreamTests
 
         await task;
 
+        // Assert
         this.blobStorageServiceMock.Verify(s =>
             s.SaveBytesAsBlob( It.IsAny<BinaryData>(), "s3a://target-bucket/prefix/to/blobs/name".AsAmazonS3Path(), true));
         
@@ -81,6 +85,16 @@ public class BlobStorageStreamTests
     [Fact]
     public async Task TestFailsIfCannotDeleteBlob()
     {
+        // Arrange 
+        this.blobStorageServiceMock
+            .Setup(s => s.RemoveBlob(It.IsAny<AmazonS3StoragePath>()))
+            .ReturnsAsync(false);
+        
+        this.blobStorageServiceMock
+            .Setup(s => s.GetBlobContentAsync(It.IsAny<AmazonS3StoragePath>(), 
+                It.IsAny<Func<BinaryData, BinaryData>>()))
+            .ReturnsAsync(new BinaryData([1, 2, 3]));
+        
         var builder = this.CreateServiceProvider().GetRequiredService<BlobStorageGraphBuilder>();
         var context = new BlobStorageStreamContext
         {
@@ -98,6 +112,7 @@ public class BlobStorageStreamTests
         var graph = builder.BuildGraph(context);
         var callCount = 0;
 
+        // Act
         var (killSwitch, task) = graph.Run(this.actorSystem.Materializer());
         this.blobStorageServiceMock
             .Setup(s => s.ListBlobsAsEnumerable(It.IsAny<string>()))
@@ -112,6 +127,7 @@ public class BlobStorageStreamTests
             })
             .Returns(new[] { new StoredBlob { Name = "name" } });
 
+        // Assert
         await Assert.ThrowsAnyAsync<AggregateException>(async () => await task);
     }
 

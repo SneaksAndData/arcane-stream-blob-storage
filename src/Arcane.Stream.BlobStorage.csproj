@@ -8,7 +8,7 @@
     </PropertyGroup>
     <ItemGroup>
         <PackageReference Include="Arcane.Framework" Version="0.0.23" />
-        <PackageReference Include="AWSSDK.SecurityToken" Version="3.7.300.118" />
+        <PackageReference Include="AWSSDK.SecurityToken" Version="3.7.400.13" />
         <PackageReference Include="SnD.Sdk" Version="1.2.0" />
     </ItemGroup>
 

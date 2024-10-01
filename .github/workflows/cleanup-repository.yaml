@@ -23,8 +23,8 @@ jobs:
           package-type: container
           token: ${{ secrets.GITHUB_TOKEN }}
           min-versions-to-keep: 10
-          delete-only-pre-release-versions: "true"
-
+          ignore-versions: v([0-9]+\.?)+$
+          
       - name: Delete old package versions of helm/${{ github.event.repository.name  }}
         uses: actions/delete-package-versions@v5.0.0
         with:
@@ -32,4 +32,4 @@ jobs:
           package-type: container
           token: ${{ secrets.GITHUB_TOKEN }}
           min-versions-to-keep: 10
-          delete-only-pre-release-versions: "true"
+          ignore-versions: v([0-9]+\.?)+$

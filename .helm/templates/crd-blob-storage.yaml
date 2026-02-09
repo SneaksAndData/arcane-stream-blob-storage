@@ -140,6 +140,8 @@ spec:
               properties:
                 phase:
                   type: string
+                configurationHash:
+                  description: ConfigurationHash represents the hash of the current configuration.
                 conditions:
                   type: array
                   items:
